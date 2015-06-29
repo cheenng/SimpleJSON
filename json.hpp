@@ -11,6 +11,7 @@
 #include <initializer_list>
 #include <ostream>
 #include <iostream>
+#include <stdexcept>
 
 namespace json {
 
@@ -454,8 +455,7 @@ namespace {
             JSON Key = parse_next( str, offset );
             consume_ws( str, offset );
             if( str[offset] != ':' ) {
-                std::cerr << "Error: Object: Expected colon, found '" << str[offset] << "'\n";
-                break;
+                throw std::runtime_error(std::string("Error: Object: Expected colon, found '") + str[offset] + '\'');
             }
             consume_ws( str, ++offset );
             JSON Value = parse_next( str, offset );
@@ -469,8 +469,7 @@ namespace {
                 ++offset; break;
             }
             else {
-                std::cerr << "ERROR: Object: Expected comma, found '" << str[offset] << "'\n";
-                break;
+                throw std::runtime_error(std::string("ERROR: Object: Expected comma, found '") + str[offset] + '\'');
             }
         }
 
@@ -498,8 +497,7 @@ namespace {
                 ++offset; break;
             }
             else {
-                std::cerr << "ERROR: Array: Expected ',' or ']', found '" << str[offset] << "'\n";
-                return JSON::Make( JSON::Class::Array );
+                throw std::runtime_error(std::string("ERROR: Array: Expected ',' or ']', found '") + str[offset] + '\'');
             }
         }
 
@@ -523,11 +521,10 @@ namespace {
                     val += "\\u" ;
                     for( unsigned i = 1; i <= 4; ++i ) {
                         c = str[offset+i];
-                        if( (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') )
+                        if( (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') ) {
                             val += c;
-                        else {
-                            std::cerr << "ERROR: String: Expected hex character in unicode escape, found '" << c << "'\n";
-                            return JSON::Make( JSON::Class::String );
+                        } else {
+                            throw std::runtime_error(std::string("ERROR: String: Expected hex character in unicode escape, found '") + c + '\'');
                         }
                     }
                     offset += 4;
@@ -567,8 +564,7 @@ namespace {
                 if( c >= '0' && c <= '9' )
                     exp_str += c;
                 else if( !isspace( c ) && c != ',' && c != ']' && c != '}' ) {
-                    std::cerr << "ERROR: Number: Expected a number for exponent, found '" << c << "'\n";
-                    return JSON::Make( JSON::Class::Null );
+                    throw std::runtime_error(std::string("ERROR: Number: Expected a number for exponent, found '") + c + '\'');
                 }
                 else
                     break;
@@ -576,8 +572,7 @@ namespace {
             exp = std::stol( exp_str );
         }
         else if( !isspace( c ) && c != ',' && c != ']' && c != '}' ) {
-            std::cerr << "ERROR: Number: unexpected character '" << c << "'\n";
-            return JSON::Make( JSON::Class::Null );
+            throw std::runtime_error(std::string("ERROR: Number: unexpected character '") + c + '\'');
         }
         --offset;
 
@@ -594,13 +589,12 @@ namespace {
 
     JSON parse_bool( const string &str, size_t &offset ) {
         JSON Bool;
-        if( str.substr( offset, 4 ) == "true" )
+        if( str.substr( offset, 4 ) == "true" ) {
             Bool = true;
-        else if( str.substr( offset, 5 ) == "false" )
+        } else if( str.substr( offset, 5 ) == "false" ) {
             Bool = false;
-        else {
-            std::cerr << "ERROR: Bool: Expected 'true' or 'false', found '" << str.substr( offset, 5 ) << "'\n";
-            return JSON::Make( JSON::Class::Null );
+        } else {
+            throw std::runtime_error("ERROR: Bool: Expected 'true' or 'false', found '" + str.substr( offset, 5 ) + '\'');
         }
         offset += (Bool.ToBool() ? 4 : 5);
         return Bool;
@@ -608,17 +602,15 @@ namespace {
 
     JSON parse_null( const string &str, size_t &offset ) {
         if( str.substr( offset, 4 ) != "null" ) {
-            std::cerr << "ERROR: Null: Expected 'null', found '" << str.substr( offset, 4 ) << "'\n";
-            return JSON::Make( JSON::Class::Null );
+            throw std::runtime_error("ERROR: Null: Expected 'null', found '" + str.substr( offset, 4 ) + '\'');
         }
         offset += 4;
         return JSON();
     }
 
     JSON parse_next( const string &str, size_t &offset ) {
-        char value;
         consume_ws( str, offset );
-        value = str[offset];
+        const auto value = str[offset];
         switch( value ) {
             case '[' : return parse_array( str, offset );
             case '{' : return parse_object( str, offset );
@@ -629,8 +621,7 @@ namespace {
             default  : if( ( value <= '9' && value >= '0' ) || value == '-' )
                            return parse_number( str, offset );
         }
-        std::cerr << "ERROR: Parse: Unknown starting character '" << value << "'\n";
-        return JSON();
+        throw std::runtime_error(std::string("ERROR: Parse: Unknown starting character '") + value + '\'');
     }
 }
 
